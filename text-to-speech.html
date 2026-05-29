@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>קורא טקסט AI</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .card {
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 20px;
+      padding: 40px;
+      width: 100%;
+      max-width: 640px;
+      box-shadow: 0 25px 50px rgba(0,0,0,0.4);
+    }
+
+    h1 { color: #e0e0ff; font-size: 1.8rem; text-align: center; margin-bottom: 16px; }
+
+    /* Mode toggle */
+    .mode-toggle {
+      display: flex;
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 4px;
+      margin-bottom: 20px;
+    }
+    .mode-btn {
+      flex: 1; padding: 10px; border: none; border-radius: 9px;
+      font-size: 0.9rem; font-weight: 600; cursor: pointer;
+      background: transparent; color: #8888aa; transition: all 0.2s;
+    }
+    .mode-btn.active { background: linear-gradient(135deg, #7c6ffc, #5a4fcf); color: white; }
+
+    /* Textarea + upload */
+    .textarea-wrap { position: relative; }
+
+    .upload-btn {
+      position: absolute;
+      top: 10px; left: 10px;
+      background: rgba(124,111,252,0.2);
+      border: 1px solid rgba(124,111,252,0.4);
+      color: #b0a8ff;
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .upload-btn:hover { background: rgba(124,111,252,0.35); }
+    #fileInput { display: none; }
+
+    label.field-label { color: #aaaacc; font-size: 0.85rem; display: block; margin-bottom: 6px; }
+
+    textarea {
+      width: 100%; height: 150px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 12px;
+      color: #e0e0ff; font-size: 1rem;
+      padding: 14px 14px 32px 14px;
+      resize: vertical; outline: none;
+      transition: border 0.3s; font-family: inherit;
+    }
+    textarea:focus { border-color: #7c6ffc; }
+    textarea::placeholder { color: #555577; }
+    textarea.drag-over { border-color: #7c6ffc; background: rgba(124,111,252,0.1); }
+
+    .char-counter {
+      text-align: left;
+      font-size: 0.78rem;
+      color: #555577;
+      margin-top: 4px;
+      margin-bottom: 4px;
+    }
+    .char-counter.warn { color: #ffaa55; }
+    .char-counter.over { color: #ff8080; }
+
+    /* Controls */
+    .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px; }
+    .control-group { display: flex; flex-direction: column; gap: 6px; }
+
+    select {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 10px; color: #e0e0ff;
+      padding: 10px 12px; font-size: 0.9rem; outline: none; cursor: pointer;
+    }
+    select option { background: #1a1a2e; color: #e0e0ff; }
+
+    input[type="range"] {
+      -webkit-appearance: none; appearance: none;
+      height: 6px; background: rgba(255,255,255,0.1);
+      border-radius: 3px; outline: none; margin-top: 8px; width: 100%;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: #7c6ffc; cursor: pointer;
+    }
+    .range-value { color: #7c6ffc; font-size: 0.8rem; text-align: center; }
+
+    /* Buttons */
+    .buttons { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+    .action-btn {
+      flex: 1; min-width: 100px; padding: 13px; border: none;
+      border-radius: 12px; font-size: 0.95rem; font-weight: 600;
+      cursor: pointer; transition: all 0.2s;
+    }
+    #playBtn { background: linear-gradient(135deg, #7c6ffc, #5a4fcf); color: white; }
+    #playBtn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(124,111,252,0.4); }
+    #playBtn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    #stopBtn { background: rgba(255,80,80,0.15); color: #ff8080; border: 1px solid rgba(255,80,80,0.2); }
+    #stopBtn:hover { background: rgba(255,80,80,0.25); }
+    #downloadBtn {
+      background: rgba(80,200,120,0.15); color: #80ffaa;
+      border: 1px solid rgba(80,200,120,0.2); display: none;
+    }
+    #downloadBtn:hover { background: rgba(80,200,120,0.25); }
+
+    .shortcut-hint { color: #444466; font-size: 0.75rem; text-align: center; margin-top: 6px; }
+
+    /* Status */
+    .status { margin-top: 10px; text-align: center; font-size: 0.85rem; color: #666688; min-height: 20px; }
+    .status.active  { color: #7c6ffc; }
+    .status.error   { color: #ff8080; }
+    .status.success { color: #80ffaa; }
+
+    .credits { margin-top: 6px; text-align: center; font-size: 0.8rem; color: #666688; }
+    .credits span { color: #7c6ffc; }
+
+    /* History */
+    .history-section { margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.07); padding-top: 16px; }
+    .history-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 10px;
+    }
+    .history-title { color: #8888aa; font-size: 0.85rem; font-weight: 600; }
+    .clear-history {
+      background: none; border: none; color: #555577;
+      font-size: 0.78rem; cursor: pointer; transition: color 0.2s;
+    }
+    .clear-history:hover { color: #ff8080; }
+
+    .history-list { display: flex; flex-direction: column; gap: 6px; max-height: 160px; overflow-y: auto; }
+    .history-item {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 8px; padding: 8px 12px;
+      color: #aaaacc; font-size: 0.82rem;
+      cursor: pointer; transition: background 0.2s;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .history-item:hover { background: rgba(124,111,252,0.15); color: #e0e0ff; }
+    .no-history { color: #444466; font-size: 0.82rem; text-align: center; padding: 8px; }
+
+    .loader {
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid rgba(124,111,252,0.3); border-top-color: #7c6ffc;
+      border-radius: 50%; animation: spin 0.8s linear infinite;
+      vertical-align: middle; margin-left: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .panel { display: none; }
+    .panel.visible { display: contents; }
+
+    /* API Key input */
+    .api-key-row {
+      display: none; grid-column: 1 / -1;
+      flex-direction: column; gap: 6px;
+    }
+    .api-key-row.visible { display: flex; }
+    .api-key-wrap {
+      display: flex; gap: 8px; align-items: center;
+    }
+    .api-key-input {
+      flex: 1;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 10px; color: #e0e0ff;
+      padding: 10px 12px; font-size: 0.9rem; outline: none;
+      font-family: monospace;
+      transition: border 0.3s;
+    }
+    .api-key-input:focus { border-color: #7c6ffc; }
+    .api-key-input.saved { border-color: #80ffaa; }
+    .save-key-btn {
+      background: linear-gradient(135deg, #7c6ffc, #5a4fcf);
+      color: white; border: none; border-radius: 10px;
+      padding: 10px 16px; font-size: 0.85rem; font-weight: 600;
+      cursor: pointer; white-space: nowrap; transition: opacity 0.2s;
+    }
+    .save-key-btn:hover { opacity: 0.85; }
+    .key-status { font-size: 0.78rem; color: #555577; }
+    .key-status.ok { color: #80ffaa; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>קורא טקסט AI</h1>
+
+  <div class="mode-toggle">
+    <button class="mode-btn active" id="btnHebrew" onclick="setMode('hebrew')">עברית (Microsoft)</button>
+    <button class="mode-btn" id="btnEleven" onclick="setMode('elevenlabs')">רב-לשוני (ElevenLabs)</button>
+  </div>
+
+  <label class="field-label">טקסט לקריאה</label>
+  <div class="textarea-wrap">
+    <button class="upload-btn" onclick="document.getElementById('fileInput').click()">📂 טעינת קובץ</button>
+    <input type="file" id="fileInput" accept=".txt" />
+    <textarea id="textInput" placeholder="כתוב כאן את הטקסט שברצונך לשמוע... או גרור קובץ .txt לכאן"></textarea>
+  </div>
+  <div class="char-counter" id="charCounter">0 תווים</div>
+
+  <div class="controls">
+    <div class="control-group panel visible" id="hebrewVoiceGroup">
+      <label class="field-label">קול עברי</label>
+      <select id="hebrewVoiceSelect"><option>טוען קולות...</option></select>
+    </div>
+    <div class="control-group panel visible" id="hebrewRateGroup">
+      <label class="field-label">מהירות דיבור</label>
+      <input type="range" id="rateRange" min="0.5" max="2" step="0.1" value="1" />
+      <div class="range-value" id="rateValue">1.0x</div>
+    </div>
+
+    <div class="api-key-row panel" id="apiKeyRow">
+      <label class="field-label">ElevenLabs API Key</label>
+      <div class="api-key-wrap">
+        <input type="password" class="api-key-input" id="apiKeyInput" placeholder="sk_..." />
+        <button class="save-key-btn" onclick="saveApiKey()">שמור</button>
+      </div>
+      <div class="key-status" id="keyStatus"></div>
+    </div>
+
+    <div class="control-group panel" id="elevenVoiceGroup">
+      <label class="field-label">קול (ElevenLabs)</label>
+      <select id="elevenVoiceSelect"><option>טוען...</option></select>
+    </div>
+    <div class="control-group panel" id="elevenModelGroup">
+      <label class="field-label">מודל</label>
+      <select id="modelSelect">
+        <option value="eleven_multilingual_v2">Multilingual v2</option>
+        <option value="eleven_turbo_v2_5">Turbo v2.5</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="buttons">
+    <button class="action-btn" id="playBtn">▶ השמע</button>
+    <button class="action-btn" id="stopBtn">⏹ עצור</button>
+    <button class="action-btn" id="downloadBtn">⬇ הורד MP3</button>
+  </div>
+  <div class="shortcut-hint">Ctrl + Enter להשמעה מהירה</div>
+
+  <div class="status" id="status">מוכן לקריאה</div>
+  <div class="credits" id="credits"></div>
+
+  <div class="history-section">
+    <div class="history-header">
+      <span class="history-title">היסטוריה אחרונה</span>
+      <button class="clear-history" onclick="clearHistory()">נקה הכל</button>
+    </div>
+    <div class="history-list" id="historyList"></div>
+  </div>
+</div>
+
+<script>
+  function getApiKey() { return localStorage.getItem('eleven_api_key') || ''; }
+  function saveApiKey() {
+    const val = document.getElementById('apiKeyInput').value.trim();
+    if (!val) return;
+    localStorage.setItem('eleven_api_key', val);
+    document.getElementById('apiKeyInput').classList.add('saved');
+    document.getElementById('keyStatus').textContent = '✓ המפתח נשמר';
+    document.getElementById('keyStatus').className = 'key-status ok';
+    elevenLoaded = false;
+    loadElevenVoices();
+    loadCredits();
+  }
+  function initApiKeyUI() {
+    const saved = getApiKey();
+    if (saved) {
+      document.getElementById('apiKeyInput').value = saved;
+      document.getElementById('apiKeyInput').classList.add('saved');
+      document.getElementById('keyStatus').textContent = '✓ מפתח שמור';
+      document.getElementById('keyStatus').className = 'key-status ok';
+    }
+  }
+
+  let currentMode = 'hebrew';
+  let currentAudio = null;
+  let lastAudioBlob = null;
+  const synth = window.speechSynthesis;
+  let allVoices = [];
+
+  // --- Mode ---
+  function setMode(mode) {
+    currentMode = mode;
+    document.getElementById('btnHebrew').classList.toggle('active', mode === 'hebrew');
+    document.getElementById('btnEleven').classList.toggle('active', mode === 'elevenlabs');
+    ['hebrewVoiceGroup','hebrewRateGroup'].forEach(id =>
+      document.getElementById(id).classList.toggle('visible', mode === 'hebrew'));
+    ['elevenVoiceGroup','elevenModelGroup','apiKeyRow'].forEach(id =>
+      document.getElementById(id).classList.toggle('visible', mode === 'elevenlabs'));
+    document.getElementById('downloadBtn').style.display = 'none';
+    document.getElementById('credits').textContent = '';
+    if (mode === 'elevenlabs') { loadElevenVoices(); loadCredits(); }
+  }
+
+  // --- Hebrew (Web Speech API) ---
+  function loadHebrewVoices() {
+    allVoices = synth.getVoices();
+    const heVoices = allVoices.filter(v => v.lang.startsWith('he'));
+    const sel = document.getElementById('hebrewVoiceSelect');
+    sel.innerHTML = '';
+    if (!heVoices.length) { sel.innerHTML = '<option>לא נמצאו קולות עבריים</option>'; return; }
+    heVoices.forEach(v => {
+      const o = document.createElement('option');
+      o.value = v.name; o.textContent = v.name; sel.appendChild(o);
+    });
+  }
+  loadHebrewVoices();
+  if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = loadHebrewVoices;
+  document.getElementById('rateRange').addEventListener('input', e =>
+    document.getElementById('rateValue').textContent = parseFloat(e.target.value).toFixed(1) + 'x');
+
+  function speakHebrew(text) {
+    synth.cancel();
+    const utt = new SpeechSynthesisUtterance(text);
+    const selName = document.getElementById('hebrewVoiceSelect').value;
+    utt.voice = allVoices.find(v => v.name === selName) || null;
+    utt.rate = parseFloat(document.getElementById('rateRange').value);
+    utt.onstart = () => setStatus('מקריא...', 'active');
+    utt.onend   = () => { setStatus('סיים לקרוא', 'success'); enablePlay(); };
+    utt.onerror = e => { setStatus('שגיאה: ' + e.error, 'error'); enablePlay(); };
+    synth.speak(utt);
+  }
+
+  // --- ElevenLabs ---
+  let elevenLoaded = false;
+  async function loadElevenVoices() {
+    if (elevenLoaded) return;
+    try {
+      const res = await fetch('https://api.elevenlabs.io/v1/voices', { headers: { 'xi-api-key': getApiKey() } });
+      const data = await res.json();
+      const sel = document.getElementById('elevenVoiceSelect');
+      sel.innerHTML = '';
+      data.voices.sort((a,b) => a.name.localeCompare(b.name)).forEach(v => {
+        const o = document.createElement('option');
+        o.value = v.voice_id; o.textContent = v.name; sel.appendChild(o);
+      });
+      elevenLoaded = true;
+    } catch { setStatus('שגיאה בטעינת קולות', 'error'); }
+  }
+
+  async function speakEleven(text) {
+    const voiceId = document.getElementById('elevenVoiceSelect').value;
+    document.getElementById('playBtn').innerHTML = 'מייצר... <span class="loader"></span>';
+    setStatus('שולח ל-ElevenLabs...', 'active');
+    document.getElementById('downloadBtn').style.display = 'none';
+    try {
+      const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+        method: 'POST',
+        headers: { 'xi-api-key': getApiKey(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text, model_id: document.getElementById('modelSelect').value,
+          voice_settings: { stability: 0.5, similarity_boost: 0.75 }
+        })
+      });
+      if (!res.ok) throw new Error('שגיאה ' + res.status);
+      lastAudioBlob = await res.blob();
+      currentAudio = new Audio(URL.createObjectURL(lastAudioBlob));
+      currentAudio.onended = () => {
+        setStatus('סיים לקרוא', 'success');
+        enablePlay();
+        document.getElementById('downloadBtn').style.display = 'flex';
+        loadCredits();
+      };
+      currentAudio.play();
+      setStatus('מקריא...', 'active');
+    } catch(e) { setStatus(e.message, 'error'); enablePlay(); }
+  }
+
+  async function loadCredits() {
+    try {
+      const res = await fetch('https://api.elevenlabs.io/v1/user/subscription', { headers: { 'xi-api-key': getApiKey() } });
+      const d = await res.json();
+      const rem = d.character_limit - d.character_count;
+      document.getElementById('credits').innerHTML = `קרדיטים שנותרו: <span>${rem.toLocaleString()}</span> / ${d.character_limit.toLocaleString()}`;
+    } catch {}
+  }
+
+  // --- Character counter ---
+  const textInput = document.getElementById('textInput');
+  const charCounter = document.getElementById('charCounter');
+  textInput.addEventListener('input', updateCharCount);
+  function updateCharCount() {
+    const n = textInput.value.length;
+    charCounter.textContent = n.toLocaleString() + ' תווים';
+    charCounter.className = 'char-counter' + (n > 9000 ? ' over' : n > 7000 ? ' warn' : '');
+  }
+
+  // --- File upload ---
+  document.getElementById('fileInput').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => { textInput.value = ev.target.result; updateCharCount(); };
+    reader.readAsText(file, 'UTF-8');
+  });
+
+  textInput.addEventListener('dragover', e => { e.preventDefault(); textInput.classList.add('drag-over'); });
+  textInput.addEventListener('dragleave', () => textInput.classList.remove('drag-over'));
+  textInput.addEventListener('drop', e => {
+    e.preventDefault(); textInput.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (!file || !file.name.endsWith('.txt')) { setStatus('נא לגרור קובץ .txt בלבד', 'error'); return; }
+    const reader = new FileReader();
+    reader.onload = ev => { textInput.value = ev.target.result; updateCharCount(); };
+    reader.readAsText(file, 'UTF-8');
+  });
+
+  // --- Download ---
+  document.getElementById('downloadBtn').addEventListener('click', () => {
+    if (!lastAudioBlob) return;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(lastAudioBlob);
+    a.download = 'audio.mp3';
+    a.click();
+  });
+
+  // --- History ---
+  function loadHistory() {
+    const history = JSON.parse(localStorage.getItem('tts_history') || '[]');
+    const list = document.getElementById('historyList');
+    list.innerHTML = '';
+    if (!history.length) { list.innerHTML = '<div class="no-history">אין היסטוריה עדיין</div>'; return; }
+    history.forEach(text => {
+      const item = document.createElement('div');
+      item.className = 'history-item';
+      item.title = text;
+      item.textContent = text;
+      item.onclick = () => { textInput.value = text; updateCharCount(); };
+      list.appendChild(item);
+    });
+  }
+
+  function saveToHistory(text) {
+    const short = text.length > 80 ? text.substring(0, 80) + '...' : text;
+    let history = JSON.parse(localStorage.getItem('tts_history') || '[]');
+    history = [short, ...history.filter(h => h !== short)].slice(0, 8);
+    localStorage.setItem('tts_history', JSON.stringify(history));
+    loadHistory();
+  }
+
+  function clearHistory() {
+    localStorage.removeItem('tts_history');
+    loadHistory();
+  }
+
+  loadHistory();
+  initApiKeyUI();
+
+  // --- Play / Stop ---
+  document.getElementById('playBtn').addEventListener('click', () => play());
+  document.getElementById('stopBtn').addEventListener('click', () => {
+    synth.cancel();
+    if (currentAudio) { currentAudio.pause(); currentAudio = null; }
+    setStatus('עצר'); enablePlay();
+  });
+
+  function play() {
+    const text = textInput.value.trim();
+    if (!text) { setStatus('אנא הכנס טקסט', 'error'); return; }
+    document.getElementById('playBtn').disabled = true;
+    saveToHistory(text);
+    if (currentMode === 'hebrew') speakHebrew(text);
+    else if (!getApiKey()) { setStatus('נא להזין ElevenLabs API Key', 'error'); enablePlay(); }
+    else speakEleven(text);
+  }
+
+  // --- Ctrl+Enter ---
+  document.addEventListener('keydown', e => {
+    if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); play(); }
+  });
+
+  // --- Helpers ---
+  function enablePlay() {
+    const btn = document.getElementById('playBtn');
+    btn.disabled = false; btn.innerHTML = '▶ השמע';
+  }
+  function setStatus(msg, type = '') {
+    const el = document.getElementById('status');
+    el.textContent = msg; el.className = 'status ' + type;
+  }
+</script>
+</body>
+</html>
