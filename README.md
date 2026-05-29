@@ -1,4 +1,4 @@
-# AI Text Reader — קורא טקסט AI
+# AI Text Reader
 
 A browser-based text-to-speech app supporting Hebrew (via Web Speech API) and multilingual voices (via ElevenLabs).
 
@@ -16,9 +16,9 @@ A browser-based text-to-speech app supporting Hebrew (via Web Speech API) and mu
 ## Usage
 
 1. Open `text-to-speech.html` in your browser
-2. Choose a mode: **עברית (Microsoft)** or **רב-לשוני (ElevenLabs)**
-3. For ElevenLabs: enter your API key in the key field and click **שמור**
-4. Type or paste text, then click **השמע**
+2. Choose a mode: **Hebrew (Microsoft)** or **Multilingual (ElevenLabs)**
+3. For ElevenLabs: enter your API key in the key field and click **Save**
+4. Type or paste text, then click **Play**
 
 ## ElevenLabs API Key
 
